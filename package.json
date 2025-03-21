@@ -1,6 +1,6 @@
 {
   "name": "@jsonresume/mcp",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "description": "ModelContextProtocol server for enhancing JSON Resumes",
   "type": "module",
   "private": false,
