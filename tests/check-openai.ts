@@ -24,7 +24,7 @@ async function checkOpenAI() {
     console.log("Response:", response.choices[0]?.message?.content);
     return true;
   } catch (error) {
-    console.error("Error testing OpenAI API key:", error);
+    console.log("Error testing OpenAI API key:", error);
     return false;
   }
 }

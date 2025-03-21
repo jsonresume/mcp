@@ -33,7 +33,7 @@ async function init() {
     
     return { githubService, openaiService, codebaseAnalyzer, resumeEnhancer };
   } catch (error) {
-    console.error("Error initializing services:", error);
+    console.log("Error initializing services:", error);
     process.exit(1);
   }
 }
@@ -91,7 +91,7 @@ async function enhanceResumeWithProject() {
       projectName: codebaseAnalysis.repoName,
     };
   } catch (error) {
-    console.error("Error enhancing resume with project:", error);
+    console.log("Error enhancing resume with project:", error);
     throw error;
   }
 }
@@ -102,6 +102,6 @@ enhanceResumeWithProject()
     process.exit(0);
   })
   .catch(error => {
-    console.error("Fatal error:", error);
+    console.log("Fatal error:", error);
     process.exit(1);
   });

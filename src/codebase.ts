@@ -59,12 +59,12 @@ export class CodebaseAnalyzer {
           description = packageJson.description;
         }
       } catch (error) {
-        console.error('Error reading package.json:', error);
+        console.log('Error reading package.json:', error);
       }
       
       return { name, owner, description };
     } catch (error) {
-      console.error('Error getting repo details:', error);
+      console.log('Error getting repo details:', error);
       // If we can't get the repo details from git, use the directory name
       return {
         name: path.basename(this.rootDir),
@@ -93,7 +93,7 @@ export class CodebaseAnalyzer {
         }
       }
     } catch (error) {
-      console.error('Error counting files by language:', error);
+      console.log('Error counting files by language:', error);
       // Fallback to a simple directory walk if git command fails
       this.walkDirectory(this.rootDir, languages);
     }
@@ -124,7 +124,7 @@ export class CodebaseAnalyzer {
         }
       }
     } catch (error) {
-      console.error('Error walking directory:', error);
+      console.log('Error walking directory:', error);
     }
   }
   
@@ -150,7 +150,7 @@ export class CodebaseAnalyzer {
           };
         });
     } catch (error) {
-      console.error('Error getting recent commits:', error);
+      console.log('Error getting recent commits:', error);
       return [];
     }
   }
@@ -214,7 +214,7 @@ export class CodebaseAnalyzer {
       if (files.some(f => f.includes('migration'))) technologies.add('Database Migrations');
       
     } catch (error) {
-      console.error('Error detecting technologies:', error);
+      console.log('Error detecting technologies:', error);
     }
     
     return Array.from(technologies);
@@ -228,7 +228,7 @@ export class CodebaseAnalyzer {
       const { stdout } = await execAsync('git ls-files | wc -l', { cwd: this.rootDir });
       return parseInt(stdout.trim(), 10);
     } catch (error) {
-      console.error('Error counting files:', error);
+      console.log('Error counting files:', error);
       return 0;
     }
   }
@@ -252,7 +252,7 @@ export class CodebaseAnalyzer {
       
       return undefined;
     } catch (error) {
-      console.error('Error reading README.md:', error);
+      console.log('Error reading README.md:', error);
       return undefined;
     }
   }

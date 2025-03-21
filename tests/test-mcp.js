@@ -21,17 +21,17 @@ const env = {
 
 // Validate required environment variables
 if (!env.GITHUB_TOKEN) {
-  console.error("Error: GITHUB_TOKEN environment variable is required");
+  console.log("Error: GITHUB_TOKEN environment variable is required");
   process.exit(1);
 }
 
 if (!env.OPENAI_API_KEY) {
-  console.error("Error: OPENAI_API_KEY environment variable is required");
+  console.log("Error: OPENAI_API_KEY environment variable is required");
   process.exit(1);
 }
 
 if (!env.GITHUB_USERNAME) {
-  console.error("Error: GITHUB_USERNAME environment variable is required");
+  console.log("Error: GITHUB_USERNAME environment variable is required");
   process.exit(1);
 }
 
@@ -57,7 +57,7 @@ mcp.stdout.on('data', (data) => {
   }
 });
 
-// Listen for stderr (console.error messages from the MCP server)
+// Listen for stderr (console.log messages from the MCP server)
 mcp.stderr.on('data', (data) => {
   console.log('MCP server stderr:', data.toString().trim());
 });

@@ -28,7 +28,7 @@ export class GitHubService {
       });
       return data;
     } catch (error) {
-      console.error("Error fetching user profile:", error);
+      console.log("Error fetching user profile:", error);
       throw error;
     }
   }
@@ -40,7 +40,7 @@ export class GitHubService {
     try {
       // If we've already found the gist ID in this session, use it
       if (this.cachedGistId) {
-        console.error(`Using cached gist ID: ${this.cachedGistId}`);
+        console.log(`Using cached gist ID: ${this.cachedGistId}`);
         try {
           const { data: gist } = await this.octokit.rest.gists.get({
             gist_id: this.cachedGistId,
@@ -54,26 +54,26 @@ export class GitHubService {
           if (resumeFile && resumeFile.raw_url) {
             const response = await fetch(resumeFile.raw_url);
             const resumeData = await response.json();
-            console.error("Successfully fetched resume from cached gist ID");
+            console.log("Successfully fetched resume from cached gist ID");
             return { 
               ...resumeData,
               _gistId: this.cachedGistId
             };
           }
         } catch (error) {
-          console.error("Error fetching from cached gist ID, will try listing all gists:", error);
+          console.log("Error fetching from cached gist ID, will try listing all gists:", error);
           this.cachedGistId = null;
         }
       }
 
       // List all gists for the user
-      console.error(`Listing gists for user: ${this.username}`);
+      console.log(`Listing gists for user: ${this.username}`);
       const { data: gists } = await this.octokit.rest.gists.list({
         username: this.username,
         per_page: 100,
       });
       
-      console.error(`Found ${gists.length} gists, searching for resume.json`);
+      console.log(`Found ${gists.length} gists, searching for resume.json`);
 
       // Find all gists containing resume.json and sort by updated_at
       const resumeGists = gists
@@ -91,7 +91,7 @@ export class GitHubService {
       if (resumeGists.length > 0) {
         // Use the most recently updated resume.json gist
         const mostRecentGist = resumeGists[0];
-        console.error(`Found ${resumeGists.length} resume.json gists. Using most recent: ${mostRecentGist.id} (updated: ${mostRecentGist.updated_at})`);
+        console.log(`Found ${resumeGists.length} resume.json gists. Using most recent: ${mostRecentGist.id} (updated: ${mostRecentGist.updated_at})`);
         
         // Cache the gist ID for future use
         this.cachedGistId = mostRecentGist.id;
@@ -112,10 +112,10 @@ export class GitHubService {
         }
       }
 
-      console.error("No resume.json found in any gists");
+      console.log("No resume.json found in any gists");
       return null; // No resume.json found
     } catch (error) {
-      console.error("Error fetching resume from gists:", error);
+      console.log("Error fetching resume from gists:", error);
       throw error;
     }
   }
@@ -145,7 +145,7 @@ export class GitHubService {
         newResume.basics.email = userProfile.email || "";
       }
       
-      console.error("Creating new gist with resume.json");
+      console.log("Creating new gist with resume.json");
       // Create a new gist with resume.json
       const { data: gist } = await this.octokit.rest.gists.create({
         files: {
@@ -159,14 +159,14 @@ export class GitHubService {
       
       // Cache the gist ID for future use
       this.cachedGistId = gist.id;
-      console.error(`Created new gist with ID: ${gist.id}`);
+      console.log(`Created new gist with ID: ${gist.id}`);
       
       return { 
         ...newResume,
         _gistId: gist.id
       };
     } catch (error) {
-      console.error("Error creating sample resume:", error);
+      console.log("Error creating sample resume:", error);
       throw error;
     }
   }
@@ -181,23 +181,23 @@ export class GitHubService {
       
       // If not, check our cached gist ID
       if (!gistId && this.cachedGistId) {
-        console.error(`No _gistId in resume object, using cached gistId: ${this.cachedGistId}`);
+        console.log(`No _gistId in resume object, using cached gistId: ${this.cachedGistId}`);
         gistId = this.cachedGistId;
       }
       
       // If we still don't have a gist ID, try to find it
       if (!gistId) {
-        console.error("No gist ID found, attempting to find existing resume");
+        console.log("No gist ID found, attempting to find existing resume");
         const existingResume = await this.getResumeFromGists();
         if (existingResume && (existingResume as any)._gistId) {
           gistId = (existingResume as any)._gistId;
-          console.error(`Found existing resume with gist ID: ${gistId}`);
+          console.log(`Found existing resume with gist ID: ${gistId}`);
         }
       }
       
       // If we still don't have a gist ID, create a new gist
       if (!gistId) {
-        console.error("No existing resume found, creating a new one");
+        console.log("No existing resume found, creating a new one");
         const newResume = await this.createSampleResume();
         gistId = (newResume as any)._gistId;
         
@@ -221,7 +221,7 @@ export class GitHubService {
         };
       }
       
-      console.error(`Updating gist with ID: ${gistId}`);
+      console.log(`Updating gist with ID: ${gistId}`);
       // Update the gist
       const { data: updatedGist } = await this.octokit.rest.gists.update({
         gist_id: gistId as string,
@@ -240,7 +240,7 @@ export class GitHubService {
         _gistId: gistId
       };
     } catch (error) {
-      console.error("Error updating resume gist:", error);
+      console.log("Error updating resume gist:", error);
       throw error;
     }
   }
@@ -259,7 +259,7 @@ export class GitHubService {
       
       return repos;
     } catch (error) {
-      console.error("Error fetching user repositories:", error);
+      console.log("Error fetching user repositories:", error);
       throw error;
     }
   }
@@ -279,7 +279,7 @@ export class GitHubService {
       
       return commits;
     } catch (error) {
-      console.error(`Error fetching contributions to ${owner}/${repo}:`, error);
+      console.log(`Error fetching contributions to ${owner}/${repo}:`, error);
       return []; // Return empty array on error
     }
   }

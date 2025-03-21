@@ -67,12 +67,12 @@ async function main() {
     
     return enhancementResult;
   } catch (error) {
-    console.error("Error during enhancement process:", error);
+    console.log("Error during enhancement process:", error);
     throw error;
   }
 }
 
 main().catch(error => {
-  console.error("Fatal error:", error);
+  console.log("Fatal error:", error);
   process.exit(1);
 });

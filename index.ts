@@ -54,9 +54,9 @@ try {
   codebaseAnalyzer = new CodebaseAnalyzer(process.cwd());
   resumeEnhancer = new ResumeEnhancer(openaiService);
   
-  console.error("Services initialized successfully");
+  console.log("Services initialized successfully");
 } catch (error) {
-  console.error("Error initializing services:", error);
+  console.log("Error initializing services:", error);
   process.exit(1);
 }
 
@@ -119,7 +119,7 @@ function doHello(name: string) {
 
 async function analyzeCodebase(directory?: string) {
   try {
-    console.error("Starting codebase analysis...");
+    console.log("Starting codebase analysis...");
     
     // Create a new analyzer for the specified directory
     const analyzer = directory ? new CodebaseAnalyzer(directory) : codebaseAnalyzer;
@@ -127,7 +127,7 @@ async function analyzeCodebase(directory?: string) {
     // Analyze the codebase
     const analysis = await analyzer.analyze();
     
-    console.error("Codebase analysis completed");
+    console.log("Codebase analysis completed");
     
     return {
       message: "Codebase analysis completed successfully",
@@ -135,14 +135,14 @@ async function analyzeCodebase(directory?: string) {
       summary: analysis.summary
     };
   } catch (error) {
-    console.error("Error analyzing codebase:", error);
+    console.log("Error analyzing codebase:", error);
     throw error;
   }
 }
 
 async function checkResume() {
   try {
-    console.error("Checking for existing resume...");
+    console.log("Checking for existing resume...");
     
     // Fetch the user's resume from GitHub gists
     const resume = await githubService.getResumeFromGists();
@@ -165,36 +165,36 @@ async function checkResume() {
       resume: cleanResume
     };
   } catch (error) {
-    console.error("Error checking resume:", error);
+    console.log("Error checking resume:", error);
     throw error;
   }
 }
 
 async function enhanceResumeWithProject(directory?: string) {
   try {
-    console.error("Starting resume enhancement with current project...");
+    console.log("Starting resume enhancement with current project...");
     
     // Step 1: Fetch the user's resume from GitHub gists
-    console.error("Fetching resume from GitHub gists...");
+    console.log("Fetching resume from GitHub gists...");
     let resume = await githubService.getResumeFromGists();
     
     if (!resume) {
       // If no resume exists, create a sample one
-      console.error("No resume found, creating a sample resume...");
+      console.log("No resume found, creating a sample resume...");
       const userProfile = await githubService.getUserProfile();
       resume = await githubService.createSampleResume();
-      console.error("Sample resume created successfully");
+      console.log("Sample resume created successfully");
     } else {
-      console.error("Existing resume found");
+      console.log("Existing resume found");
     }
     
     // Step 2: Analyze the current codebase
-    console.error("Analyzing current project...");
+    console.log("Analyzing current project...");
     const analyzer = directory ? new CodebaseAnalyzer(directory) : codebaseAnalyzer;
     const codebaseAnalysis = await analyzer.analyze();
     
     // Step 3: Enhance the resume with the current project
-    console.error("Enhancing resume with current project...");
+    console.log("Enhancing resume with current project...");
     const { updatedResume, changes, summary, userMessage, resumeLink } = await resumeEnhancer.enhanceWithCurrentProject(
       resume,
       codebaseAnalysis,
@@ -202,7 +202,7 @@ async function enhanceResumeWithProject(directory?: string) {
     );
     
     // Step 4: Update the resume on GitHub
-    console.error("Updating resume on GitHub...");
+    console.log("Updating resume on GitHub...");
     const finalResume = await githubService.updateResume(updatedResume);
     
     return {
@@ -215,25 +215,25 @@ async function enhanceResumeWithProject(directory?: string) {
       warning: "⚠️ Note: Automatic resume updates might have modified your resume in ways that don't match your preferences. You can revert to a previous version through your GitHub Gist revision history if needed."
     };
   } catch (error) {
-    console.error("Error enhancing resume with project:", error);
+    console.log("Error enhancing resume with project:", error);
     throw error;
   }
 }
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   if (request.params.name === "github_hello_tool") {
-    console.error("Hello tool", request.params.arguments);
+    console.log("Hello tool", request.params.arguments);
     const input = request.params.arguments as { name: string };
     return doHello(input.name);
   } else if (request.params.name === "github_analyze_codebase") {
-    console.error("Analyze codebase tool", request.params.arguments);
+    console.log("Analyze codebase tool", request.params.arguments);
     const input = request.params.arguments as { directory?: string };
     return await analyzeCodebase(input.directory);
   } else if (request.params.name === "github_check_resume") {
-    console.error("Check resume tool", request.params.arguments);
+    console.log("Check resume tool", request.params.arguments);
     return await checkResume();
   } else if (request.params.name === "github_enhance_resume_with_project") {
-    console.error("Enhance resume with project tool", request.params.arguments);
+    console.log("Enhance resume with project tool", request.params.arguments);
     const input = request.params.arguments as { directory?: string };
     return await enhanceResumeWithProject(input.directory);
   }
@@ -242,7 +242,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 server.onerror = (error: any) => {
-  console.error(error);
+  console.log(error);
 };
 
 process.on("SIGINT", async () => {
@@ -253,10 +253,10 @@ process.on("SIGINT", async () => {
 async function runServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("JsonResume MCP Server running on stdio");
+  console.log("JsonResume MCP Server running on stdio");
 }
 
 runServer().catch((error) => {
-  console.error("Fatal error running server:", error);
+  console.log("Fatal error running server:", error);
   process.exit(1);
 });

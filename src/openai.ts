@@ -21,7 +21,7 @@ export class OpenAIService {
     codebaseAnalysis: CodebaseAnalysisResult
   ): Promise<ResumeUpdate> {
     try {
-      console.error("Preparing OpenAI API call for resume enhancement...");
+      console.log("Preparing OpenAI API call for resume enhancement...");
       
       // Call OpenAI API with function calling
       const response = await this.client.chat.completions.create({
@@ -143,40 +143,40 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
         function_call: { name: "create_resume_update" }
       });
 
-      console.error("Received response from OpenAI API");
+      console.log("Received response from OpenAI API");
       
       const functionCall = response.choices[0]?.message?.function_call;
       if (!functionCall?.arguments) {
-        console.error("Error: No function call arguments in OpenAI response");
+        console.log("Error: No function call arguments in OpenAI response");
         throw new Error("No function call arguments received from OpenAI");
       }
 
       // Parse and validate the response
-      console.error("Parsing and validating OpenAI response...");
+      console.log("Parsing and validating OpenAI response...");
       try {
         const result = JSON.parse(functionCall.arguments);
         const validated = resumeUpdateSchema.parse(result);
-        console.error("Successfully validated schema");
+        console.log("Successfully validated schema");
         return validated;
       } catch (parseError) {
-        console.error("Error parsing OpenAI response:", 
+        console.log("Error parsing OpenAI response:", 
           parseError instanceof SyntaxError ? "JSON parse error" : 
           parseError instanceof z.ZodError ? "Schema validation error" : 
           "Unknown error"
         );
-        console.error("Raw function call arguments:", functionCall.arguments.substring(0, 200) + "...");
+        console.log("Raw function call arguments:", functionCall.arguments.substring(0, 200) + "...");
         throw parseError;
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Schema validation error:", error.errors);
+        console.log("Schema validation error:", error.errors);
       } else if (error instanceof SyntaxError) {
-        console.error("JSON parsing error:", error.message);
+        console.log("JSON parsing error:", error.message);
       } else if (error instanceof Error) {
-        console.error("OpenAI API error:", error.message);
-        console.error("Error details:", error);
+        console.log("OpenAI API error:", error.message);
+        console.log("Error details:", error);
       } else {
-        console.error("Unknown error:", error);
+        console.log("Unknown error:", error);
       }
       throw error;
     }
@@ -228,7 +228,7 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
    */
   async generateUpdateSummary(changes: string[]): Promise<string> {
     try {
-      console.error("Generating update summary...");
+      console.log("Generating update summary...");
       
       // Call OpenAI API to generate a summary
       const response = await this.client.chat.completions.create({
@@ -249,7 +249,7 @@ Codebase Analysis:\n${JSON.stringify(codebaseAnalysis, null, 2)}`
       const summary = response.choices[0]?.message?.content || "Resume updated with new project details and skills.";
       return summary;
     } catch (error) {
-      console.error("Error generating update summary:", error);
+      console.log("Error generating update summary:", error);
       return "Resume updated with new project details and skills.";
     }
   }

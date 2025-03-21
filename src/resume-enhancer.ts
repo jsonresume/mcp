@@ -31,26 +31,26 @@ export class ResumeEnhancer {
     githubUsername: string
   ): Promise<EnhancementResult> {
     try {
-      console.error('Starting resume enhancement with codebase details:', JSON.stringify({
+      console.log('Starting resume enhancement with codebase details:', JSON.stringify({
         repoName: codebaseAnalysis.repoName,
         languages: Object.keys(codebaseAnalysis.languages),
         technologies: codebaseAnalysis.technologies
       }));
       
       // Get resume updates from OpenAI
-      console.error('Calling OpenAI to generate resume enhancement...');
+      console.log('Calling OpenAI to generate resume enhancement...');
       const update = await this.openAIService.generateResumeEnhancement(codebaseAnalysis);
-      console.error('Received resume updates from OpenAI');
+      console.log('Received resume updates from OpenAI');
       
       // Apply the updates to the resume
-      console.error('Enhancing resume with new data...');
+      console.log('Enhancing resume with new data...');
       const updatedResume = await this.openAIService.enhanceResume(resume, update);
-      console.error('Resume enhanced successfully');
+      console.log('Resume enhanced successfully');
       
       // Generate a summary of the changes
-      console.error('Generating update summary...');
+      console.log('Generating update summary...');
       const summary = await this.openAIService.generateUpdateSummary(update.changes);
-      console.error('Summary generated');
+      console.log('Summary generated');
       
       // Create user message
       const userMessage = this.createUserMessage(githubUsername, update.changes);
@@ -68,7 +68,7 @@ export class ResumeEnhancer {
         resumeLink: `https://registry.jsonresume.org/${githubUsername}`
       };
     } catch (error) {
-      console.error('Error enhancing resume with current project:', error);
+      console.log('Error enhancing resume with current project:', error);
       throw error;
     }
   }

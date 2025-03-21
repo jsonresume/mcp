@@ -108,7 +108,7 @@ async function testEnhanceWithMock() {
     
     return result;
   } catch (error) {
-    console.error("Error in mock test:", error);
+    console.log("Error in mock test:", error);
     throw error;
   }
 }
@@ -119,6 +119,6 @@ testEnhanceWithMock()
     process.exit(0);
   })
   .catch(error => {
-    console.error("Test failed:", error);
+    console.log("Test failed:", error);
     process.exit(1);
   });
