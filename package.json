@@ -1,8 +1,9 @@
 {
   "name": "@jsonresume/mcp",
-  "version": "2.0.0",
+  "version": "3.0.3",
   "description": "ModelContextProtocol server for enhancing JSON Resumes",
   "type": "module",
+  "main": "dist/index.cjs",
   "private": false,
   "scripts": {
     "make-executable": "node -e \"fs.chmodSync('dist/index.cjs', '755');\" --require fs",
@@ -24,12 +25,16 @@
     "dist"
   ],
   "dependencies": {
+    "@hono/node-server": "^1.14.0",
     "@modelcontextprotocol/sdk": "^1.0.3",
     "axios": "^1.8.1",
+    "express": "^5.1.0",
+    "hono": "^4.7.5",
     "octokit": "^3.2.1",
     "openai": "^4.86.1"
   },
   "devDependencies": {
+    "@types/express": "^5.0.1",
     "@types/node": "^22.10.1",
     "concurrently": "^8.2.2",
     "esbuild": "^0.24.0",
