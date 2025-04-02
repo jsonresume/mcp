@@ -1,5 +1,13 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
+import { serve } from '@hono/node-server';
+import express from 'express';
+import type { Request, Response } from 'express';
+import type { Context } from 'hono';
+
 import {
   CallToolRequestSchema,
   ErrorCode,
@@ -13,7 +21,7 @@ import { Resume } from "./src/types.js";
 import { CodebaseAnalyzer } from "./src/codebase.js";
 import { ResumeEnhancer } from "./src/resume-enhancer.js";
 
-const server = new Server(
+const mcpServer = new Server(
   {
     name: "jsonresume-mcp",
     version: "1.0.0",
@@ -107,7 +115,7 @@ const tools = [
   ENHANCE_RESUME_WITH_PROJECT_TOOL,
 ];
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
+mcpServer.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools,
 }));
 
@@ -220,7 +228,7 @@ async function enhanceResumeWithProject(directory?: string) {
   }
 }
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
+mcpServer.setRequestHandler(CallToolRequestSchema, async (request: any) => {
   if (request.params.name === "github_hello_tool") {
     console.log("Hello tool", request.params.arguments);
     const input = request.params.arguments as { name: string };
@@ -241,22 +249,96 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
 });
 
-server.onerror = (error: any) => {
+mcpServer.onerror = (error: any) => {
   console.log(error);
 };
 
 process.on("SIGINT", async () => {
-  await server.close();
+  await mcpServer.close();
+  if (expressServer) expressServer.close();
   process.exit(0);
 });
 
+let expressServer: ReturnType<typeof expressApp.listen>;
+
+// Express app for MCP/SSE
+const expressApp = express();
+let transport: SSEServerTransport;
+
+expressApp.get('/', (req: Request, res: Response) => {
+  res.send('JsonResume MCP Server');
+});
+
+expressApp.get('/sse', async (req: Request, res: Response) => {
+  console.log('Configuring SSE transport');
+  transport = new SSEServerTransport('/messages', res);
+  await mcpServer.connect(transport);
+});
+
+expressApp.post('/messages', async (req: Request, res: Response) => {
+  if (!transport) {
+    console.log('No transport found.');
+    return res.status(400).send('No transport found');
+  }
+  await transport.handlePostMessage(req, res);
+  return res.status(200).send('');
+});
+
+// Hono app as proxy
+const app = new Hono();
+
+app.get('/', (c) => c.text('JsonResume MCP Server - Hono Proxy'));
+
 async function runServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.log("JsonResume MCP Server running on stdio");
+  // Check if 'sse' is passed as a command line argument
+  const useSSE = process.argv.includes('sse');
+  
+  if (useSSE) {
+    // Start the SSE server
+    const port = process.argv.find(arg => arg.startsWith('--port='))?.split('=')[1] ?? 9921;
+    
+    // Start Express server for MCP/SSE on port 9921
+    expressServer = expressApp.listen(port, () => {
+      console.log(`JsonResume MCP Server running with SSE on port ${port}`);
+      console.log(`Connect to SSE endpoint at http://localhost:${port}/sse`);
+    });
+
+    // Start Hono server on port 9922
+    const honoPort = 9922;
+    app.get('*', async (c) => {
+      const url = new URL(c.req.url);
+      url.port = port.toString();
+      const headers = new Headers(c.req.header());
+      const response = await fetch(url.toString(), { headers });
+      return new Response(response.body, response);
+    });
+
+    app.post('*', async (c) => {
+      const url = new URL(c.req.url);
+      url.port = port.toString();
+      const headers = new Headers(c.req.header());
+      const body = await c.req.arrayBuffer();
+      const response = await fetch(url.toString(), {
+        method: 'POST',
+        headers,
+        body
+      });
+      return new Response(response.body, response);
+    });
+
+    serve({ fetch: app.fetch, port: honoPort });
+    console.log(`Hono proxy server running on port ${honoPort}`);
+  } else {
+    // Start the stdio server (default)
+    const transport = new StdioServerTransport();
+    await mcpServer.connect(transport);
+    console.log("JsonResume MCP Server running on stdio");
+  }
 }
 
 runServer().catch((error) => {
   console.log("Fatal error running server:", error);
   process.exit(1);
 });
+
+export default app;
