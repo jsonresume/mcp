@@ -14,6 +14,7 @@ import { OpenAIService } from "./src/openai.js";
 import { Resume } from "./src/types.js";
 import { CodebaseAnalyzer } from "./src/codebase.js";
 import { ResumeEnhancer } from "./src/resume-enhancer.js";
+import { tools, ANALYZE_CODEBASE_TOOL, CHECK_RESUME_TOOL, ENHANCE_RESUME_WITH_PROJECT_TOOL } from "./src/tools.js";
 
 // Load environment variables from .env file
 config();
@@ -65,52 +66,7 @@ try {
   process.exit(1);
 }
 
-// Define MCP tools
-const ANALYZE_CODEBASE_TOOL: Tool = {
-  name: "github_analyze_codebase",
-  description: "This is a tool from the github MCP server.\nAnalyzes the current codebase and returns information about technologies, languages, and recent commits",
-  inputSchema: {
-    type: "object",
-    properties: {
-      directory: {
-        type: "string",
-        description: "The directory to analyze. If not provided, uses current working directory.",
-      },
-    },
-    required: [],
-  },
-};
 
-const CHECK_RESUME_TOOL: Tool = {
-  name: "github_check_resume",
-  description: "This is a tool from the github MCP server.\nChecks if a GitHub user has a JSON Resume and returns its information",
-  inputSchema: {
-    type: "object",
-    properties: {},
-    required: [],
-  },
-};
-
-const ENHANCE_RESUME_WITH_PROJECT_TOOL: Tool = {
-  name: "github_enhance_resume_with_project",
-  description: "This is a tool from the github MCP server.\nEnhances a GitHub user's JSON Resume with information about their current project",
-  inputSchema: {
-    type: "object",
-    properties: {
-      directory: {
-        type: "string",
-        description: "The directory of the project to analyze. If not provided, uses current working directory.",
-      },
-    },
-    required: [],
-  },
-};
-
-const tools = [
-  ANALYZE_CODEBASE_TOOL,
-  CHECK_RESUME_TOOL,
-  ENHANCE_RESUME_WITH_PROJECT_TOOL,
-];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools,
@@ -230,14 +186,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     console.log("Hello tool", request.params.arguments);
     const input = request.params.arguments as { name: string };
     return doHello(input.name);
-  } else if (request.params.name === "github_analyze_codebase") {
+  } else if (request.params.name === ANALYZE_CODEBASE_TOOL.name) {
     console.log("Analyze codebase tool", request.params.arguments);
     const input = request.params.arguments as { directory?: string };
     return await analyzeCodebase(input.directory);
-  } else if (request.params.name === "github_check_resume") {
+  } else if (request.params.name === CHECK_RESUME_TOOL.name) {
     console.log("Check resume tool", request.params.arguments);
     return await checkResume();
-  } else if (request.params.name === "github_enhance_resume_with_project") {
+  } else if (request.params.name === ENHANCE_RESUME_WITH_PROJECT_TOOL.name) {
     console.log("Enhance resume with project tool", request.params.arguments);
     const input = request.params.arguments as { directory?: string };
     return await enhanceResumeWithProject(input.directory);
