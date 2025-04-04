@@ -1,5 +1,7 @@
+import { config } from "dotenv";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   CallToolRequestSchema,
   ErrorCode,
@@ -12,6 +14,9 @@ import { OpenAIService } from "./src/openai.js";
 import { Resume } from "./src/types.js";
 import { CodebaseAnalyzer } from "./src/codebase.js";
 import { ResumeEnhancer } from "./src/resume-enhancer.js";
+
+// Load environment variables from .env file
+config();
 
 const server = new Server(
   {
@@ -27,7 +32,7 @@ const server = new Server(
   }
 );
 
-// Environment variables
+// Environment variables (loaded from .env file via dotenv)
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const GITHUB_USERNAME = process.env.GITHUB_USERNAME;

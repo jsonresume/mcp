@@ -24,8 +24,9 @@
     "dist"
   ],
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.3",
+    "@modelcontextprotocol/sdk": "^1.8.0",
     "axios": "^1.8.1",
+    "dotenv": "^16.4.7",
     "octokit": "^3.2.1",
     "openai": "^4.86.1"
   },
