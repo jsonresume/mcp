@@ -11,6 +11,8 @@
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.cjs",
     "dev": "concurrently \"npm run watch\" \"npm run inspect\"",
     "start": "node dist/index.cjs",
+    "start:stdio": "node dist/index.cjs stdio",
+    "start:http": "node dist/index.cjs",
     "prepublishOnly": "npm run build",
     "test:openai": "tsx tests/check-openai.ts",
     "test:mock": "tsx tests/debug-mock.ts",
@@ -18,15 +20,18 @@
     "test:mcp": "node tests/test-mcp.js"
   },
   "bin": {
-    "@jsonresume/mcp": "./dist/index.cjs"
+    "jsonresume": "./dist/index.cjs",
+    "jsonresume-mcp": "./dist/index.cjs"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
+    "@hono/node-server": "^1.14.0",
     "@modelcontextprotocol/sdk": "^1.8.0",
     "axios": "^1.8.1",
     "dotenv": "^16.4.7",
+    "hono": "^4.7.5",
     "octokit": "^3.2.1",
     "openai": "^4.86.1"
   },

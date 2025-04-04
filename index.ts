@@ -15,6 +15,8 @@ import { Resume } from "./src/types.js";
 import { CodebaseAnalyzer } from "./src/codebase.js";
 import { ResumeEnhancer } from "./src/resume-enhancer.js";
 import { tools, ANALYZE_CODEBASE_TOOL, CHECK_RESUME_TOOL, ENHANCE_RESUME_WITH_PROJECT_TOOL } from "./src/tools.js";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
 
 // Load environment variables from .env file
 config();
@@ -211,13 +213,41 @@ process.on("SIGINT", async () => {
   process.exit(0);
 });
 
-async function runServer() {
+async function runStdioServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.log("JsonResume MCP Server running on stdio");
 }
 
-runServer().catch((error) => {
-  console.log("Fatal error running server:", error);
-  process.exit(1);
-});
+async function runHttpServer() {
+  const app = new Hono();
+  const PORT = process.env.PORT || 3000;
+  
+  app.get('/', (c) => {
+    return c.text('Hello, I\'m jsonresume');
+  });
+  
+  console.log(`JsonResume HTTP Server starting on port ${PORT}...`);
+  serve({
+    fetch: app.fetch,
+    port: Number(PORT)
+  });
+  
+  console.log(`JsonResume HTTP Server running at http://localhost:${PORT}`);
+}
+
+// Determine which server mode to run based on command line arguments
+const args = process.argv.slice(2);
+const shouldRunStdio = args.includes('stdio');
+
+if (shouldRunStdio) {
+  runStdioServer().catch((error) => {
+    console.log("Fatal error running stdio server:", error);
+    process.exit(1);
+  });
+} else {
+  runHttpServer().catch((error) => {
+    console.log("Fatal error running HTTP server:", error);
+    process.exit(1);
+  });
+}
