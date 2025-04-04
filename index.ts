@@ -224,16 +224,25 @@ async function runHttpServer() {
   const PORT = process.env.PORT || 3000;
   
   app.get('/', (c) => {
-    return c.text('Hello, I\'m jsonresume');
+    return c.json({
+      message: 'Hello, I\'m JSON Resume MCP Server',
+      description: 'This is a ModelContextProtocol server for enhancing JSON Resumes',
+      usage: {
+        http: 'npx -y @jsonresume/mcp',
+        stdio: 'npx -y @jsonresume/mcp stdio'
+      },
+      version: '3.0.3'
+    });
   });
   
-  console.log(`JsonResume HTTP Server starting on port ${PORT}...`);
+  console.log(`JsonResume MCP Server starting on port ${PORT}...`);
   serve({
     fetch: app.fetch,
     port: Number(PORT)
   });
   
-  console.log(`JsonResume HTTP Server running at http://localhost:${PORT}`);
+  console.log(`JsonResume MCP Server running at http://localhost:${PORT}`);
+  console.log(`To use in stdio mode, run: npx -y @jsonresume/mcp stdio`);
 }
 
 // Determine which server mode to run based on command line arguments

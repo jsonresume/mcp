@@ -20,8 +20,7 @@
     "test:mcp": "node tests/test-mcp.js"
   },
   "bin": {
-    "jsonresume": "./dist/index.cjs",
-    "jsonresume-mcp": "./dist/index.cjs"
+    "@jsonresume/mcp": "./dist/index.cjs"
   },
   "files": [
     "dist"
