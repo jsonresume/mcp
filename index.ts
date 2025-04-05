@@ -220,7 +220,7 @@ async function runStdioServer() {
 }
 
 async function runHttpServer() {
-  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
   const app = new Hono();
   
   app.get('/', (c) => {
@@ -332,8 +332,8 @@ async function runHttpServer() {
           // Handle client disconnect
           c.req.raw.signal.addEventListener('abort', () => {
             console.log(`[SSE Handler] Client disconnected, closing transport`);
-            server.disconnect();
-            controller.close();
+            // server.close();
+            // controller.close();
           });
         }
       }),
