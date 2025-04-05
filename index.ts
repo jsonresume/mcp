@@ -245,6 +245,13 @@ async function runHttpServer() {
     // Create a new SSE transport
     const transport = new SSEServerTransport();
     
+    // log out all of transport, its function definitions and all
+
+    console.log(transport);
+    console.log(transport.start);
+    console.log(transport.handlePostMessage);
+    console.log(transport.close);
+
     // Connect the transport to the server
     console.log("dead dog 1");
     await server.connect(transport);
