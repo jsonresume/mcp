@@ -329,11 +329,28 @@ async function runHttpServer() {
             controller.error(error);
           };
           
+          // Set up a keep-alive ping to prevent timeout
+          console.log(`[SSE Handler] Setting up keep-alive ping every 15 seconds`);
+          const pingInterval = setInterval(() => {
+            try {
+              console.log(`[SSE Handler] Sending ping to keep connection alive`);
+              controller.enqueue(`event: ping\ndata: ${Date.now()}\n\n`);
+            } catch (err) {
+              console.error(`[SSE Handler] Error sending ping:`, err);
+              clearInterval(pingInterval);
+            }
+          }, 15000); // Send a ping every 15 seconds
+          
           // Handle client disconnect
           c.req.raw.signal.addEventListener('abort', () => {
-            console.log(`[SSE Handler] Client disconnected, closing transport`);
-            // server.close();
-            // controller.close();
+            console.log(`[SSE Handler] Client disconnected, cleaning up`);
+            clearInterval(pingInterval);
+            try {
+              // server.disconnect();
+              // controller.close();
+            } catch (err) {
+              console.error(`[SSE Handler] Error during cleanup:`, err);
+            }
           });
         }
       }),
