@@ -220,8 +220,8 @@ async function runStdioServer() {
 }
 
 async function runHttpServer() {
+  const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3001;
   const app = new Hono();
-  const PORT = process.env.PORT || 3000;
   
   app.get('/', (c) => {
     return c.json({
@@ -242,36 +242,96 @@ async function runHttpServer() {
     c.header('Cache-Control', 'no-cache');
     c.header('Connection', 'keep-alive');
     
-    // Create a new SSE transport
-    const transport = new SSEServerTransport();
+    // Create a monkey-patched SSE transport that works with Hono
+    console.log("Creating monkey-patched SSE transport");
     
-    // log out all of transport, its function definitions and all
-
-    console.log(transport);
-    console.log(transport.start);
-    console.log(transport.handlePostMessage);
-    console.log(transport.close);
-
-    // Connect the transport to the server
-    console.log("dead dog 1");
+    // Create a wrapper for the Hono response object to mimic Node's ServerResponse
+    const honoResponseAdapter = {
+      // Store data that will be written to the response
+      _data: [] as string[],
+      
+      // Track if headers have been sent
+      headersSent: false,
+      
+      // Mimic writeHead method
+      writeHead: function(statusCode: number, headers?: Record<string, string>) {
+        console.log(`[Adapter] writeHead called with status ${statusCode}`);
+        // Headers are already set at the Hono level, so we just track that headers were sent
+        this.headersSent = true;
+        return this;
+      },
+      
+      // Mimic write method
+      write: function(chunk: string) {
+        console.log(`[Adapter] write called with chunk length ${chunk.length}`);
+        this._data.push(chunk);
+        return true;
+      },
+      
+      // Mimic end method
+      end: function() {
+        console.log(`[Adapter] end called`);
+        return this;
+      },
+      
+      // Add EventEmitter-like functionality
+      _listeners: {} as Record<string, Function[]>,
+      on: function(event: string, listener: Function) {
+        console.log(`[Adapter] Adding listener for ${event}`);
+        if (!this._listeners[event]) {
+          this._listeners[event] = [];
+        }
+        this._listeners[event].push(listener);
+        return this;
+      },
+      
+      // Method to get all accumulated data
+      getAllData: function() {
+        return this._data.join('');
+      }
+    };
+    
+    // Create transport with the adapter
+    const transport = new SSEServerTransport("/mcp", honoResponseAdapter as unknown as ServerResponse);
+    
+    console.log("Connecting transport to server");
     await server.connect(transport);
-    console.log("dead dog 2")
+    console.log("Transport connected to server")
 
 
     // Keep the connection alive
     return new Response(
       new ReadableStream({
         start(controller) {
+          console.log("[SSE Handler] Stream started");
+          
           // Send an initial event
           controller.enqueue('event: connected\ndata: {"status":"connected"}\n\n');
           
-          // Set up transport event handlers
+          // Add adapter method to forward data from the adapter to the stream
+          const adapter = transport['res'] as any;
+          const originalWrite = adapter.write;
+          adapter.write = function(chunk: string) {
+            console.log(`[Stream Relay] Received chunk of length ${chunk.length}, forwarding to client`);
+            controller.enqueue(chunk);
+            return originalWrite.call(this, chunk);
+          };
+          
+          // Set up transport event handlers for MCP messages
           transport.onmessage = (message) => {
+            console.log(`[SSE Handler] Received message from transport:`, message);
             controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
+          };
+          
+          // Add handler for errors
+          transport.onerror = (error) => {
+            console.error(`[SSE Handler] Transport error:`, error);
+            controller.error(error);
           };
           
           // Handle client disconnect
           c.req.raw.signal.addEventListener('abort', () => {
+            console.log(`[SSE Handler] Client disconnected, closing transport`);
             server.disconnect();
             controller.close();
           });
