@@ -1,14 +1,14 @@
 import { config } from "dotenv";
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { Server } from "../typescript-sdk/src/server/index.js";
+import { StdioServerTransport } from "../typescript-sdk/src/server/stdio.js";
+import { SSEServerTransport } from "../typescript-sdk/src/server/sse.js";
 import {
   CallToolRequestSchema,
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
   Tool,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "../typescript-sdk/src/types.js";
 import { GitHubService } from "./src/github.js";
 import { OpenAIService } from "./src/openai.js";
 import { Resume } from "./src/types.js";
@@ -235,6 +235,51 @@ async function runHttpServer() {
     });
   });
   
+  // Add SSE endpoint
+  app.get('/sse', async (c) => {
+    // Set up SSE headers
+    c.header('Content-Type', 'text/event-stream');
+    c.header('Cache-Control', 'no-cache');
+    c.header('Connection', 'keep-alive');
+    
+    // Create a new SSE transport
+    const transport = new SSEServerTransport();
+    
+    // Connect the transport to the server
+    console.log("dead dog 1");
+    await server.connect(transport);
+    console.log("dead dog 2")
+
+
+    // Keep the connection alive
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          // Send an initial event
+          controller.enqueue('event: connected\ndata: {"status":"connected"}\n\n');
+          
+          // Set up transport event handlers
+          transport.onmessage = (message) => {
+            controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
+          };
+          
+          // Handle client disconnect
+          c.req.raw.signal.addEventListener('abort', () => {
+            server.disconnect();
+            controller.close();
+          });
+        }
+      }),
+      {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive'
+        }
+      }
+    );
+  });
+  
   console.log(`JsonResume MCP Server starting on port ${PORT}...`);
   serve({
     fetch: app.fetch,
@@ -242,6 +287,7 @@ async function runHttpServer() {
   });
   
   console.log(`JsonResume MCP Server running at http://localhost:${PORT}`);
+  console.log(`SSE endpoint available at http://localhost:${PORT}/sse`);
   console.log(`To use in stdio mode, run: npx -y @jsonresume/mcp stdio`);
 }
 

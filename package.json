@@ -9,7 +9,7 @@
     "build": "esbuild index.ts --outfile=dist/index.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' && npm run make-executable",
     "watch": "esbuild index.ts --outfile=dist/index.cjs --bundle --platform=node --format=cjs --banner:js='#!/usr/bin/env node' --watch",
     "inspect": "npx @modelcontextprotocol/inspector node dist/index.cjs",
-    "dev": "concurrently \"npm run watch\" \"npm run inspect\"",
+    "dev": "tsx index.ts",
     "start": "node dist/index.cjs",
     "start:stdio": "node dist/index.cjs stdio",
     "start:http": "node dist/index.cjs",
@@ -27,7 +27,7 @@
   ],
   "dependencies": {
     "@hono/node-server": "^1.14.0",
-    "@modelcontextprotocol/sdk": "^1.8.0",
+    "@modelcontextprotocol/sdk": "file:/home/ajax/repos/typescript-sdk",
     "axios": "^1.8.1",
     "dotenv": "^16.4.7",
     "hono": "^4.7.5",
