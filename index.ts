@@ -184,24 +184,82 @@ async function enhanceResumeWithProject(directory?: string) {
 }
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "github_hello_tool") {
-    console.log("Hello tool", request.params.arguments);
-    const input = request.params.arguments as { name: string };
-    return doHello(input.name);
-  } else if (request.params.name === ANALYZE_CODEBASE_TOOL.name) {
-    console.log("Analyze codebase tool", request.params.arguments);
-    const input = request.params.arguments as { directory?: string };
-    return await analyzeCodebase(input.directory);
-  } else if (request.params.name === CHECK_RESUME_TOOL.name) {
-    console.log("Check resume tool", request.params.arguments);
-    return await checkResume();
-  } else if (request.params.name === ENHANCE_RESUME_WITH_PROJECT_TOOL.name) {
-    console.log("Enhance resume with project tool", request.params.arguments);
-    const input = request.params.arguments as { directory?: string };
-    return await enhanceResumeWithProject(input.directory);
+  try {
+    console.log(`[MCP] Tool call: ${request.params.name}`, request.params.arguments);
+    
+    // Validate the tool name
+    if (!tools.some(tool => tool.name === request.params.name)) {
+      return {
+        isError: true,
+        content: [{
+          type: "text",
+          text: `Error: Unknown tool '${request.params.name}'`
+        }]
+      };
+    }
+    
+    // Execute the appropriate tool
+    if (request.params.name === "github_hello_tool") {
+      const input = request.params.arguments as { name: string };
+      const result = doHello(input.name);
+      
+      return {
+        content: [{
+          type: "text",
+          text: result.message
+        }]
+      };
+    } else if (request.params.name === ANALYZE_CODEBASE_TOOL.name) {
+      const input = request.params.arguments as { directory?: string };
+      const result = await analyzeCodebase(input.directory);
+      
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2)
+        }]
+      };
+    } else if (request.params.name === CHECK_RESUME_TOOL.name) {
+      const result = await checkResume();
+      
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2)
+        }]
+      };
+    } else if (request.params.name === ENHANCE_RESUME_WITH_PROJECT_TOOL.name) {
+      const input = request.params.arguments as { directory?: string };
+      const result = await enhanceResumeWithProject(input.directory);
+      
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result, null, 2)
+        }]
+      };
+    }
+    
+    // This should never happen due to our validation above
+    return {
+      isError: true,
+      content: [{
+        type: "text",
+        text: `Error: Tool '${request.params.name}' implementation not found`
+      }]
+    };
+  } catch (error) {
+    console.error(`[MCP] Error executing tool ${request.params.name}:`, error);
+    
+    // Return a proper error response
+    return {
+      isError: true,
+      content: [{
+        type: "text",
+        text: `Error executing tool: ${error.message || String(error)}`
+      }]
+    };
   }
-
-  throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
 });
 
 server.onerror = (error: any) => {
@@ -235,46 +293,102 @@ async function runHttpServer() {
     });
   });
   
-  // Add SSE endpoint
+  // Add MCP message endpoint for client->server communication
+  app.post('/message', async (c) => {
+    const sessionId = c.req.query('sessionId');
+    if (!sessionId) {
+      return c.json({ error: 'No session ID provided' }, 400);
+    }
+
+    try {
+      const body = await c.req.json();
+      console.log(`[MCP] Received message for session ${sessionId}:`, body);
+      
+      // Find the transport for this session and handle the message
+      const transport = activeTransports.get(sessionId);
+      if (!transport) {
+        return c.json({ error: 'Invalid session ID' }, 404);
+      }
+      
+      // Special handling for initialize message
+      if (body.method === 'initialize') {
+        console.log(`[MCP] Handling initialize message for session ${sessionId}`);
+        // Send initialize response directly via SSE
+        const response = {
+          jsonrpc: "2.0",
+          id: body.id,
+          result: {
+            serverInfo: {
+              name: "jsonresume-mcp",
+              version: "1.0.0",
+            },
+            capabilities: {
+              tools: {},
+              resources: {},
+              logging: {}
+            }
+          }
+        };
+        
+        // Let's directly use the controller we stored when setting up the SSE connection
+        console.log(`[MCP] Sending initialize response to session ${sessionId}`);
+        
+        // Store controllers along with transports
+        const sseData = `data: ${JSON.stringify(response)}\n\n`;
+        
+        // Directly write to the response stream
+        // This bypasses the transport's send method
+        const res = transport['res'];
+        if (res && typeof res.write === 'function') {
+          try {
+            res.write(sseData);
+            console.log(`[MCP] Successfully wrote initialize response to stream`);
+          } catch (error) {
+            console.error(`[MCP] Error writing to stream:`, error);
+          }
+        } else {
+          console.error(`[MCP] Could not access response object for session ${sessionId}`);
+        }
+        
+        return c.json({ status: 'ok' });
+      }
+      
+      await transport.handlePostMessage(c.req.raw, new Response() as any, body);
+      return c.json({ status: 'ok' });
+    } catch (error) {
+      console.error(`[MCP] Error handling message:`, error);
+      return c.json({ error: String(error) }, 500);
+    }
+  });
+
+  // Store active SSE transports
+  const activeTransports = new Map<string, SSEServerTransport>();
+
+  // Add SSE endpoint for server->client streaming
   app.get('/sse', async (c) => {
     // Set up SSE headers
     c.header('Content-Type', 'text/event-stream');
     c.header('Cache-Control', 'no-cache');
     c.header('Connection', 'keep-alive');
     
-    // Create a monkey-patched SSE transport that works with Hono
-    console.log("Creating monkey-patched SSE transport");
-    
     // Create a wrapper for the Hono response object to mimic Node's ServerResponse
     const honoResponseAdapter = {
-      // Store data that will be written to the response
       _data: [] as string[],
-      
-      // Track if headers have been sent
       headersSent: false,
-      
-      // Mimic writeHead method
       writeHead: function(statusCode: number, headers?: Record<string, string>) {
         console.log(`[Adapter] writeHead called with status ${statusCode}`);
-        // Headers are already set at the Hono level, so we just track that headers were sent
         this.headersSent = true;
         return this;
       },
-      
-      // Mimic write method
       write: function(chunk: string) {
         console.log(`[Adapter] write called with chunk length ${chunk.length}`);
         this._data.push(chunk);
         return true;
       },
-      
-      // Mimic end method
       end: function() {
         console.log(`[Adapter] end called`);
         return this;
       },
-      
-      // Add EventEmitter-like functionality
       _listeners: {} as Record<string, Function[]>,
       on: function(event: string, listener: Function) {
         console.log(`[Adapter] Adding listener for ${event}`);
@@ -284,29 +398,17 @@ async function runHttpServer() {
         this._listeners[event].push(listener);
         return this;
       },
-      
-      // Method to get all accumulated data
-      getAllData: function() {
-        return this._data.join('');
-      }
     };
     
-    // Create transport with the adapter
-    const transport = new SSEServerTransport("/mcp", honoResponseAdapter as unknown as ServerResponse);
-    
-    console.log("Connecting transport to server");
-    await server.connect(transport);
-    console.log("Transport connected to server")
-
+    // Create transport with message endpoint as the target for client->server messages
+    const transport = new SSEServerTransport("/message", honoResponseAdapter as unknown as ServerResponse);
+    let sessionId: string;
 
     // Keep the connection alive
     return new Response(
       new ReadableStream({
         start(controller) {
-          console.log("[SSE Handler] Stream started");
-          
-          // Send an initial event
-          controller.enqueue('event: connected\ndata: {"status":"connected"}\n\n');
+          console.log("[SSE] Stream started");
           
           // Add adapter method to forward data from the adapter to the stream
           const adapter = transport['res'] as any;
@@ -316,40 +418,62 @@ async function runHttpServer() {
             controller.enqueue(chunk);
             return originalWrite.call(this, chunk);
           };
-          
-          // Set up transport event handlers for MCP messages
+
+          // Set up transport event handlers
           transport.onmessage = (message) => {
-            console.log(`[SSE Handler] Received message from transport:`, message);
+            console.log(`[SSE] Server message:`, message);
             controller.enqueue(`data: ${JSON.stringify(message)}\n\n`);
           };
           
-          // Add handler for errors
           transport.onerror = (error) => {
-            console.error(`[SSE Handler] Transport error:`, error);
+            console.error(`[SSE] Transport error:`, error);
             controller.error(error);
           };
+
+          // Connect transport to server and store it
+          server.connect(transport).then(() => {
+            sessionId = transport.sessionId;
+            activeTransports.set(sessionId, transport);
+            
+            // Send endpoint event with session ID
+            const endpointUrl = `/message?sessionId=${sessionId}`;
+            controller.enqueue(`event: endpoint\ndata: ${endpointUrl}\n\n`);
+            
+            // Send initial connected event
+            controller.enqueue('event: connected\ndata: {"status":"connected"}\n\n');
+          }).catch(error => {
+            console.error(`[SSE] Connection error:`, error);
+            controller.error(error);
+          });
           
-          // Set up a keep-alive ping to prevent timeout
-          console.log(`[SSE Handler] Setting up keep-alive ping every 15 seconds`);
+          // Set up keep-alive ping
           const pingInterval = setInterval(() => {
             try {
-              console.log(`[SSE Handler] Sending ping to keep connection alive`);
+              console.log(`[SSE] Sending ping`);
               controller.enqueue(`event: ping\ndata: ${Date.now()}\n\n`);
             } catch (err) {
-              console.error(`[SSE Handler] Error sending ping:`, err);
+              console.error(`[SSE] Ping error:`, err);
               clearInterval(pingInterval);
             }
-          }, 15000); // Send a ping every 15 seconds
+          }, 15000);
           
           // Handle client disconnect
           c.req.raw.signal.addEventListener('abort', () => {
-            console.log(`[SSE Handler] Client disconnected, cleaning up`);
+            console.log(`[SSE] Client disconnected, cleaning up session ${sessionId}`);
             clearInterval(pingInterval);
-            try {
-              // server.disconnect();
-              // controller.close();
-            } catch (err) {
-              console.error(`[SSE Handler] Error during cleanup:`, err);
+            if (sessionId) {
+              // Just remove the transport from our map
+              activeTransports.delete(sessionId);
+              // Don't call server.disconnect() as it's not a function on the server instance
+              // Instead, we'll just clean up the transport
+              try {
+                // Notify any listeners that might be attached to the transport
+                if (transport.onerror) {
+                  transport.onerror(new Error('Client disconnected'));
+                }
+              } catch (err) {
+                console.error(`[SSE] Error during cleanup:`, err);
+              }
             }
           });
         }
