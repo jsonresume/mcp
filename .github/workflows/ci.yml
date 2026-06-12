@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke test (stdio requires GITHUB_TOKEN)
+        run: |
+          set +e
+          output="$(env -u GITHUB_TOKEN -u OPENAI_API_KEY -u GITHUB_USERNAME node dist/index.cjs stdio 2>&1)"
+          code=$?
+          echo "$output"
+          if [ "$code" -eq 0 ]; then
+            echo "Expected non-zero exit when GITHUB_TOKEN is missing, got 0"
+            exit 1
+          fi
+          echo "$output" | grep -q "GITHUB_TOKEN environment variable is required" || {
+            echo "Expected GITHUB_TOKEN message not found in output"
+            exit 1
+          }
+          echo "Smoke test passed: server exits gracefully asking for GITHUB_TOKEN"
