@@ -1,14 +1,14 @@
 import { config } from "dotenv";
-import { Server } from "../typescript-sdk/src/server/index.js";
-import { StdioServerTransport } from "../typescript-sdk/src/server/stdio.js";
-import { SSEServerTransport } from "../typescript-sdk/src/server/sse.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {
   CallToolRequestSchema,
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
   Tool,
-} from "../typescript-sdk/src/types.js";
+} from "@modelcontextprotocol/sdk/types.js";
 import { GitHubService } from "./src/github.js";
 import { OpenAIService } from "./src/openai.js";
 import { Resume } from "./src/types.js";
